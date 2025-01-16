@@ -37,6 +37,7 @@ class CompanyJobScraper:
                                 'company': 'Cylinder Health',
                                 'location': 'Remote',  # Modify if location info becomes available
                                 'link': link,
+                                'department': 'N/A',
                                 'source': 'Cylinder Health'
                             })
         except Exception as e:
@@ -52,27 +53,42 @@ class CompanyJobScraper:
             response = requests.get(url, headers=self.headers)
             if response.status_code == 200:
                 soup = BeautifulSoup(response.content, 'html.parser')
-                # Find all job listings
-                job_listings = soup.find_all('div', class_='opening')
                 
-                for job in job_listings:
-                    title_elem = job.find('a')
-                    location_elem = job.find('span', class_='location')
+                # Find all job sections - they appear to be grouped by department
+                departments = soup.find_all(['h3', 'strong'])  # Department headers
+                
+                current_department = "General"
+                for element in soup.find_all(['strong', 'h3', 'p']):
+                    text = element.text.strip()
                     
-                    if title_elem:
-                        title = title_elem.text.strip()
-                        link = f"https://job-boards.greenhouse.io{title_elem.get('href')}"
-                        location = location_elem.text.strip() if location_elem else 'Not specified'
-                        
-                        # Only include AI/Data Science related positions
-                        if any(keyword in title.lower() for keyword in ['data', 'ai', 'machine learning', 'analyst', 'scientist', 'analytics']):
-                            jobs.append({
-                                'title': title,
-                                'company': 'MedAnalytics',
-                                'location': location,
-                                'link': link,
-                                'source': 'MedAnalytics'
-                            })
+                    # Check if this is a department header
+                    if element.name in ['h3', 'strong'] and ' - ' in text:
+                        current_department = text.split(' - ')[1].strip()
+                        continue
+                    
+                    # Check if this is a job listing
+                    if '**' in text:  # Job titles are marked with **
+                        # Extract title and location
+                        parts = text.split('**')
+                        for part in parts:
+                            if part.strip() and not part.startswith(('Department', 'Office', 'Search')):
+                                title = part.strip()
+                                location = "Remote, USA"  # Default location
+                                
+                                # Try to extract location if it's in the text
+                                location_match = re.search(r'(Remote|Richardson, TX|Nashville, TN|Remote, USA)', text)
+                                if location_match:
+                                    location = location_match.group(1)
+                                
+                                jobs.append({
+                                    'title': title,
+                                    'company': 'MedAnalytics',
+                                    'location': location,
+                                    'link': url,  # Since individual job links aren't available
+                                    'department': current_department,
+                                    'source': 'MedAnalytics'
+                                })
+                
         except Exception as e:
             st.error(f"Error scraping MedAnalytics: {str(e)}")
         
@@ -91,6 +107,9 @@ def main():
         ["Cylinder Health", "MedAnalytics"],
         default=["Cylinder Health", "MedAnalytics"]
     )
+    
+    # Add department filter
+    show_all_departments = st.checkbox("Show all departments (not just AI/Data Science)", value=False)
     
     if st.button("Scan for Jobs"):
         with st.spinner("Scanning company career pages..."):
@@ -117,8 +136,24 @@ def main():
                 # Convert to DataFrame
                 df = pd.DataFrame(all_jobs)
                 
+                # Filter for AI/Data Science positions if checkbox is not checked
+                if not show_all_departments:
+                    ai_keywords = ['data', 'ai', 'machine learning', 'analyst', 'scientist', 'analytics', 
+                                 'artificial intelligence', 'nlp', 'neural']
+                    df = df[df['title'].str.lower().str.contains('|'.join(ai_keywords), na=False)]
+                
                 # Display results
-                st.subheader(f"Found {len(all_jobs)} AI & Data Science Positions")
+                st.subheader(f"Found {len(df)} Positions")
+                
+                # Add department filter
+                if len(df) > 0:
+                    departments = sorted(df['department'].unique())
+                    selected_departments = st.multiselect(
+                        "Filter by department",
+                        departments,
+                        default=departments
+                    )
+                    df = df[df['department'].isin(selected_departments)]
                 
                 # Display as interactive table
                 st.dataframe(df)
@@ -132,7 +167,7 @@ def main():
                 ):
                     st.success("Data downloaded successfully!")
             else:
-                st.warning("No AI or Data Science positions found at selected companies.")
+                st.warning("No positions found at selected companies.")
 
 if __name__ == "__main__":
     main()
