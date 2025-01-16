@@ -1,0 +1,37 @@
+# Core dependencies
+streamlit>=1.31.0
+beautifulsoup4>=4.12.0
+requests>=2.31.0
+pandas>=2.2.0
+
+# HTTP and HTML parsing dependencies
+lxml>=5.1.0
+html5lib>=1.1
+soupsieve>=2.5
+
+# Data handling and utilities
+numpy>=1.24.0
+python-dateutil>=2.8.2
+pytz>=2024.1
+
+# Streamlit dependencies
+altair>=5.2.0
+blinker>=1.7.0
+gitpython>=3.1.41
+packaging>=23.2
+pillow>=10.2.0
+protobuf>=4.25.1
+pydeck>=0.8.0
+toml>=0.10.2
+tornado>=6.4
+watchdog>=3.0.0
+
+# Security
+certifi>=2024.2.2
+idna>=3.6
+urllib3>=2.2.0
+
+# Optional but recommended for better performance
+# Uncomment if needed
+# pyarrow>=15.0.0  # For faster dataframe operations
+# ujson>=5.9.0     # For faster JSON parsing
